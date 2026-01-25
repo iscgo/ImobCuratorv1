@@ -1,70 +1,117 @@
-export interface Particle {
-  x: number;
-  y: number;
-  vx: number;
-  vy: number;
-  originX: number;
-  originY: number;
-  targetX?: number;
-  targetY?: number;
-  color: string;
-  size: number;
+
+export enum VisitStatus {
+  REQUESTED = 'REQUESTED',
+  PENDING_CONFIRMATION = 'PENDING_CONFIRMATION',
+  CONFIRMED = 'CONFIRMED',
+  COMPLETED = 'COMPLETED',
+  CANCELLED = 'CANCELLED'
 }
 
-export interface PricingTier {
-  name: string;
-  price: string;
-  features: string[];
-  type: 'starter' | 'pro';
+export enum PropertyStatus {
+  NEW = 'NEW',
+  LIKED = 'LIKED',
+  DISCARDED = 'DISCARDED',
+  VISIT_REQUESTED = 'VISIT_REQUESTED'
 }
 
-export enum SectionId {
-  HERO = 'hero',
-  PARSER = 'parser',
-  JOURNEY = 'journey',
-  PRICING = 'pricing',
-}
-
-export type Language = 'pt' | 'br' | 'en' | 'fr';
-
-export interface UserProfile {
-  name: string;
-  email: string;
-  role: string;
-  avatar: string;
-  notificationsEnabled: boolean;
-  language: Language;
-  subscription: 'starter' | 'pro';
-  searchCount: number;
-  reputation: 'Elite' | 'Gold' | 'Silver' | 'Bronze';
+export enum ReputationLevel {
+  ELITE = 'ELITE',      // 3+ vendas seguidas (Muito Boa)
+  GOOD = 'GOOD',        // 1-2 vendas (Boa/Normal)
+  NEUTRAL = 'NEUTRAL',  // Sem histórico recente ou misto
+  RISK = 'RISK'         // 4+ perdas seguidas (Má)
 }
 
 export interface Client {
   id: string;
   name: string;
+  avatar: string;
+  email: string;
   phone: string;
-  email?: string;
-  budget: number;
-  status: 'active' | 'archived' | 'pending';
-  lastInteraction: string;
+  locationInterest: string;
+  budget: string;
+  status: 'Searching' | 'Visiting' | 'Offer Made' | 'Closed' | 'Inactive' | 'Archived';
+  lastActivity: string;
+  unreadCount?: number;
+  attentionNeeded?: boolean; // Para clientes "Em Atraso"
+  proposalSent?: boolean;
+  archivedDate?: string; // Para clientes antigos
 }
 
 export interface Property {
   id: string;
   title: string;
-  price: number;
   location: string;
-  features: string[];
-  matchPercentage: number;
-  url: string;
-  imageUrl?: string;
+  price: number;
+  currency: string;
+  bedrooms: number;
+  bathrooms: number;
+  area: number;
+  imageUrl: string;
+  url?: string; // Link original do anúncio
+  tags: string[];
+  status: PropertyStatus;
+  agentNote?: string;
+}
+
+export interface Activity {
+  id: string;
+  type: 'inquiry' | 'visit' | 'contract' | 'system';
+  title: string;
+  description: string;
+  time: string;
+  isUrgent?: boolean;
+}
+
+export interface Visit {
+  id: string;
+  propertyId: string;
+  propertyTitle: string;
+  propertyImage: string;
+  address: string;
+  clientId: string;
+  clientName: string;
+  clientAvatar: string;
+  date: string; // ISO Date YYYY-MM-DD
+  time: string;
+  status: VisitStatus;
+  notes?: string;
+  timeline?: {
+    status: VisitStatus;
+    timestamp: string;
+    completed: boolean;
+  }[];
 }
 
 export interface Notification {
   id: string;
+  type: 'agenda' | 'feedback_like' | 'feedback_dislike' | 'system';
   title: string;
   message: string;
-  type: 'alert' | 'success' | 'info';
+  time: string;
   read: boolean;
-  date: string;
+  actionUrl?: string;
+}
+
+export interface UserProfile {
+  name: string;
+  role: string;
+  agency: 'Independent' | 'Remax' | 'KW' | 'Era' | 'Century21' | 'Private' | 'Other';
+  licenseNumber?: string;
+  email: string;
+  phone: string;
+  avatar: string;
+  micrositeUrl: string;
+  passwordHash: string; // Mock password check
+  plan: 'Free' | 'Pro';
+  searchesUsed: number;
+  maxSearches: number; // 2 for Free, Infinity for Pro
+  settings: {
+    notifications: boolean;
+    language: 'pt-PT' | 'pt-BR' | 'en' | 'fr';
+  };
+  reputation: {
+    level: ReputationLevel;
+    winStreak: number;
+    lossStreak: number;
+  }
 }

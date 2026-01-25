@@ -1,200 +1,526 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
+import { CURRENT_USER } from '../constants';
+import { User, Mail, Bell, Shield, Globe, CreditCard, ChevronRight, Camera, Save, X, Lock, CheckCircle, Crown } from 'lucide-react';
 import { useLanguage } from '../contexts/LanguageContext';
-import { UserProfile, Language } from '../types';
-import { THEME } from '../constants';
-import { Camera, Save, X, Globe, CreditCard, Shield, User } from 'lucide-react';
 
-interface SettingsProps {
-  user: UserProfile;
-  onUpdateUser: (data: Partial<UserProfile>) => void;
-}
+export const Settings: React.FC = () => {
+  // Use Translation Context
+  const { language, setLanguage, t } = useLanguage();
 
-export const Settings: React.FC<SettingsProps> = ({ user, onUpdateUser }) => {
-  const { t, setLanguage, language } = useLanguage();
-  const [activeTab, setActiveTab] = useState<'profile' | 'security' | 'billing'>('profile');
+  // Local state to manage profile edits
+  const [user, setUser] = useState({
+    name: CURRENT_USER.name,
+    role: CURRENT_USER.role,
+    avatar: CURRENT_USER.avatar
+  });
   
-  // Edit States
+  // Settings States
+  const [notificationsEnabled, setNotificationsEnabled] = useState(CURRENT_USER.settings.notifications);
+  const [plan, setPlan] = useState(CURRENT_USER.plan);
+
   const [isEditing, setIsEditing] = useState(false);
-  const [editName, setEditName] = useState(user.name);
-  const [editRole, setEditRole] = useState(user.role);
-  const [previewAvatar, setPreviewAvatar] = useState(user.avatar);
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [showPlansModal, setShowPlansModal] = useState(false);
   
-  // Password States
-  const [oldPassword, setOldPassword] = useState('');
-  const [newPassword, setNewPassword] = useState('');
+  // Custom Dropdown State
+  const [isLanguageOpen, setIsLanguageOpen] = useState(false);
+  const languageRef = useRef<HTMLDivElement>(null);
+
+  // Click Outside Handler for Language Dropdown
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (languageRef.current && !languageRef.current.contains(event.target as Node)) {
+        setIsLanguageOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+  
+  // Password Form
+  const [passwordForm, setPasswordForm] = useState({
+      old: '',
+      new: '',
+      confirm: ''
+  });
+  
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Handle Image Upload - Auto Save
+  const handleImageClick = () => {
+    fileInputRef.current?.click();
+  };
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
+    const file = e.target.files?.[0];
+    if (file) {
       const reader = new FileReader();
-      reader.onload = (e) => {
-        const result = e.target?.result as string;
-        setPreviewAvatar(result);
-        onUpdateUser({ avatar: result }); // Auto-save avatar as requested
+      reader.onloadend = () => {
+        const result = reader.result as string;
+        // Update Local State
+        setUser(prev => ({ ...prev, avatar: result }));
+        // Update Global State Immediately
+        CURRENT_USER.avatar = result;
+        // Dispatch event for Header
+        window.dispatchEvent(new Event('user-profile-updated'));
       };
-      reader.readAsDataURL(e.target.files[0]);
+      reader.readAsDataURL(file);
     }
   };
 
-  const saveProfile = () => {
-    onUpdateUser({ name: editName, role: editRole });
+  // Handle Text Edits
+  const handleSaveProfile = () => {
+    setIsEditing(false);
+    CURRENT_USER.name = user.name;
+    CURRENT_USER.role = user.role;
+    window.dispatchEvent(new Event('user-profile-updated'));
+  };
+
+  const handleCancelProfile = () => {
+    setUser({
+        name: CURRENT_USER.name,
+        role: CURRENT_USER.role,
+        avatar: CURRENT_USER.avatar // Keep avatar as it auto-saves anyway
+    });
     setIsEditing(false);
   };
 
+  // Notification Toggle
+  const toggleNotifications = () => {
+      const newState = !notificationsEnabled;
+      setNotificationsEnabled(newState);
+      CURRENT_USER.settings.notifications = newState;
+  };
+
+  // Language Change Custom Handler - USES CONTEXT NOW
+  const handleSelectLanguage = (lang: string) => {
+      setLanguage(lang as any);
+      setIsLanguageOpen(false);
+  };
+
+  const getLanguageLabel = (code: string) => {
+      switch(code) {
+          case 'pt-PT': return 'Português (PT)';
+          case 'pt-BR': return 'Português (BR)';
+          case 'en': return 'English';
+          case 'fr': return 'Français';
+          default: return code;
+      }
+  };
+
+  // Upgrade Plan Mock
+  const handleUpgrade = () => {
+      const confirm = window.confirm("Deseja atualizar para o Plano Pro (Ilimitado) por €9.99?\n\nPagamento simulado com sucesso.");
+      if (confirm) {
+          CURRENT_USER.plan = 'Pro';
+          CURRENT_USER.maxSearches = Infinity;
+          setPlan('Pro');
+          setShowPlansModal(false);
+          window.dispatchEvent(new Event('user-profile-updated'));
+      }
+  };
+
+  // Password Logic
+  const handlePasswordChange = (e: React.FormEvent) => {
+      e.preventDefault();
+      if (passwordForm.old !== CURRENT_USER.passwordHash) {
+          alert("A senha antiga está incorreta.");
+          return;
+      }
+      if (passwordForm.new !== passwordForm.confirm) {
+          alert("A nova senha e a confirmação não coincidem.");
+          return;
+      }
+      if (passwordForm.new.length < 4) {
+          alert("A senha deve ter pelo menos 4 caracteres.");
+          return;
+      }
+
+      CURRENT_USER.passwordHash = passwordForm.new;
+      alert("Senha alterada com sucesso!");
+      setShowPasswordModal(false);
+      setPasswordForm({ old: '', new: '', confirm: '' });
+  };
+
   return (
-    <div className="p-8 max-w-4xl mx-auto">
-      <h1 className="text-3xl font-bold text-white mb-8" style={{ fontFamily: THEME.fonts.display }}>{t('settings')}</h1>
-
-      <div className="flex gap-4 mb-8 overflow-x-auto pb-2">
-        {[
-          { id: 'profile', icon: User, label: t('profile') },
-          { id: 'security', icon: Shield, label: t('security') },
-          { id: 'billing', icon: CreditCard, label: t('subscription') },
-        ].map(tab => (
-          <button
-            key={tab.id}
-            onClick={() => setActiveTab(tab.id as any)}
-            className={`flex items-center gap-2 px-6 py-3 rounded-xl transition-all font-medium ${
-              activeTab === tab.id 
-                ? 'bg-purple-600 text-white shadow-lg shadow-purple-900/20' 
-                : 'bg-white/5 text-gray-400 hover:text-white hover:bg-white/10'
-            }`}
-          >
-            <tab.icon size={18} />
-            {tab.label}
-          </button>
-        ))}
+    <div className="p-6 max-w-4xl mx-auto space-y-8 pb-24">
+      
+      {/* Header */}
+      <div>
+         <h1 className="text-3xl font-bold text-slate-900 dark:text-white">{t('settings.title')}</h1>
+         <p className="text-gray-500 dark:text-gray-400 mt-1">{t('settings.subtitle')}</p>
       </div>
 
-      <div className="bg-[#0A0A0C] border border-white/10 rounded-2xl p-8">
-        
-        {/* PROFILE TAB */}
-        {activeTab === 'profile' && (
-          <div className="space-y-8">
-            <div className="flex items-center gap-8">
-              <div className="relative group">
-                <img src={previewAvatar} alt="Profile" className="w-24 h-24 rounded-full object-cover border-2 border-purple-500/50" />
-                <label className="absolute inset-0 bg-black/50 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
-                  <Camera className="text-white" size={24} />
-                  <input type="file" className="hidden" accept="image/*" onChange={handleImageChange} />
-                </label>
-              </div>
-              <div className="flex-1">
-                {isEditing ? (
-                  <div className="space-y-3">
-                    <input 
-                      value={editName}
-                      onChange={(e) => setEditName(e.target.value)}
-                      className="w-full bg-white/5 border border-white/10 rounded-lg p-2 text-white"
-                      placeholder="Nome"
-                    />
-                    <input 
-                      value={editRole}
-                      onChange={(e) => setEditRole(e.target.value)}
-                      className="w-full bg-white/5 border border-white/10 rounded-lg p-2 text-white"
-                      placeholder="Cargo"
-                    />
-                    <div className="flex gap-2 mt-2">
-                      <button onClick={saveProfile} className="px-4 py-2 bg-green-600 rounded-lg text-white text-sm flex items-center gap-2"><Save size={14}/> {t('save')}</button>
-                      <button onClick={() => setIsEditing(false)} className="px-4 py-2 bg-white/10 rounded-lg text-white text-sm flex items-center gap-2"><X size={14}/> {t('cancel')}</button>
-                    </div>
-                  </div>
-                ) : (
-                  <div>
-                    <h3 className="text-2xl font-bold text-white">{user.name}</h3>
-                    <p className="text-gray-400">{user.role}</p>
-                    <button onClick={() => setIsEditing(true)} className="mt-2 text-purple-400 text-sm hover:underline">{t('edit_profile')}</button>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Language Selector */}
-            <div className="border-t border-white/10 pt-8">
-               <h4 className="text-white font-bold mb-4 flex items-center gap-2"><Globe size={18}/> {t('language')}</h4>
-               <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                  {(['pt', 'br', 'en', 'fr'] as Language[]).map(lang => (
-                    <button
-                      key={lang}
-                      onClick={() => setLanguage(lang)}
-                      className={`p-3 rounded-lg border text-center font-mono uppercase transition-all ${
-                        language === lang 
-                          ? 'bg-purple-500/20 border-purple-500 text-purple-400' 
-                          : 'bg-white/5 border-white/10 text-gray-400 hover:border-white/30'
-                      }`}
-                    >
-                      {lang}
-                    </button>
-                  ))}
-               </div>
-            </div>
-            
-            {/* Notifications Toggle */}
-             <div className="border-t border-white/10 pt-8 flex items-center justify-between">
-                <div>
-                   <h4 className="text-white font-bold mb-1">Notificações</h4>
-                   <p className="text-gray-500 text-sm">Receber alertas de e-mail e push.</p>
-                </div>
-                <button 
-                  onClick={() => onUpdateUser({ notificationsEnabled: !user.notificationsEnabled })}
-                  className={`w-12 h-6 rounded-full transition-colors relative ${user.notificationsEnabled ? 'bg-green-500' : 'bg-gray-700'}`}
-                >
-                  <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${user.notificationsEnabled ? 'left-7' : 'left-1'}`} />
-                </button>
-             </div>
-
-          </div>
-        )}
-
-        {/* SECURITY TAB */}
-        {activeTab === 'security' && (
-          <div className="space-y-6">
-            <h3 className="text-xl font-bold text-white">{t('change_password')}</h3>
-            <div>
-              <label className="block text-sm text-gray-400 mb-1">{t('old_password')}</label>
-              <input 
-                type="password" 
-                value={oldPassword}
-                onChange={(e) => setOldPassword(e.target.value)}
-                className="w-full bg-white/5 border border-white/10 rounded-lg p-3 text-white"
-              />
-            </div>
-            <div>
-              <label className="block text-sm text-gray-400 mb-1">{t('new_password')}</label>
-              <input 
-                type="password" 
-                value={newPassword}
-                onChange={(e) => setNewPassword(e.target.value)}
-                className="w-full bg-white/5 border border-white/10 rounded-lg p-3 text-white"
-              />
-            </div>
-            <button className="px-6 py-3 bg-purple-600 rounded-xl text-white font-bold hover:bg-purple-700 transition-colors">
-              {t('save')}
+      {/* Profile Card */}
+      <div className="bg-white dark:bg-slate-800 rounded-2xl p-8 shadow-sm border border-gray-100 dark:border-slate-700 flex flex-col md:flex-row items-center gap-8">
+         <div className="relative group">
+            <img 
+               src={user.avatar} 
+               alt="Profile" 
+               className="w-24 h-24 rounded-full object-cover border-4 border-gray-100 dark:border-slate-700 group-hover:opacity-90 transition-opacity"
+            />
+            <input 
+               type="file" 
+               ref={fileInputRef} 
+               className="hidden" 
+               accept="image/*"
+               onChange={handleImageChange}
+            />
+            <button 
+               onClick={handleImageClick}
+               className="absolute bottom-0 right-0 p-2 bg-indigo-600 text-white rounded-full hover:bg-indigo-700 border-2 border-white dark:border-slate-800 shadow-lg cursor-pointer transition-transform hover:scale-110"
+               title="Alterar foto"
+            >
+               <Camera size={14} />
             </button>
-          </div>
-        )}
-
-        {/* BILLING TAB */}
-        {activeTab === 'billing' && (
-          <div className="text-center py-8">
-            <div className="mb-6 inline-block p-4 bg-purple-500/10 rounded-full border border-purple-500/20">
-              <CreditCard size={48} className="text-purple-400" />
-            </div>
-            <h3 className="text-2xl font-bold text-white mb-2">Plano Atual: {user.subscription.toUpperCase()}</h3>
-            <p className="text-gray-400 mb-8 max-w-md mx-auto">
-              {user.subscription === 'starter' 
-                ? `Você utilizou ${user.searchCount}/2 pesquisas gratuitas este mês.` 
-                : 'Acesso ilimitado e prioritário ativo.'}
-            </p>
-
-            {user.subscription === 'starter' && (
-              <button className="px-8 py-4 bg-gradient-to-r from-yellow-500 to-orange-500 text-black font-bold rounded-xl hover:scale-105 transition-transform shadow-lg shadow-yellow-500/20">
-                Upgrade para PRO (€ 9.99/mês)
-              </button>
+         </div>
+         
+         <div className="flex-1 text-center md:text-left space-y-1 w-full">
+            {isEditing ? (
+               <div className="space-y-3 animate-in fade-in">
+                  <div>
+                     <label className="block text-xs text-gray-400 uppercase font-bold mb-1">Nome</label>
+                     <input 
+                        type="text" 
+                        value={user.name}
+                        onChange={(e) => setUser({...user, name: e.target.value})}
+                        className="w-full md:w-auto px-3 py-1.5 bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-600 rounded-lg font-bold text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none"
+                     />
+                  </div>
+                  <div>
+                     <label className="block text-xs text-gray-400 uppercase font-bold mb-1">Atividade / Cargo</label>
+                     <input 
+                        type="text" 
+                        value={user.role}
+                        onChange={(e) => setUser({...user, role: e.target.value})}
+                        className="w-full md:w-auto px-3 py-1.5 bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-600 rounded-lg text-indigo-600 dark:text-indigo-400 font-medium focus:ring-2 focus:ring-indigo-500 outline-none"
+                     />
+                  </div>
+               </div>
+            ) : (
+               <>
+                  <h2 className="text-2xl font-bold text-slate-900 dark:text-white">{user.name}</h2>
+                  <p className="text-indigo-600 dark:text-indigo-400 font-medium">{t('role.agent')}</p>
+               </>
             )}
-          </div>
-        )}
+            
+            <div className="flex items-center justify-center md:justify-start gap-2 text-sm text-gray-500 dark:text-gray-400 mt-2 bg-gray-50 dark:bg-slate-900 px-3 py-1 rounded-full inline-flex">
+               <Mail size={14} />
+               <span>{CURRENT_USER.email}</span>
+               <span className="bg-green-100 text-green-700 text-[10px] px-2 py-0.5 rounded-full font-bold uppercase ml-2">Verificado</span>
+            </div>
+         </div>
+
+         <div className="flex gap-2">
+            {isEditing ? (
+               <>
+                  <button 
+                     onClick={handleCancelProfile}
+                     className="px-4 py-2.5 bg-gray-100 dark:bg-slate-700 text-gray-600 dark:text-gray-300 rounded-xl text-sm font-medium hover:bg-gray-200 transition-colors flex items-center gap-2"
+                  >
+                     <X size={16} /> {t('settings.cancel')}
+                  </button>
+                  <button 
+                     onClick={handleSaveProfile}
+                     className="px-6 py-2.5 bg-indigo-600 text-white rounded-xl text-sm font-bold hover:bg-indigo-700 transition-colors flex items-center gap-2 shadow-lg shadow-indigo-500/20"
+                  >
+                     <Save size={16} /> {t('settings.save')}
+                  </button>
+               </>
+            ) : (
+               <button 
+                  onClick={() => setIsEditing(true)}
+                  className="px-6 py-2.5 border border-gray-200 dark:border-slate-600 rounded-xl text-sm font-medium hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors"
+               >
+                  {t('settings.edit_profile')}
+               </button>
+            )}
+         </div>
+      </div>
+
+      {/* Settings Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+         
+         {/* Account Settings */}
+         <div className="space-y-4">
+            <h3 className="text-sm font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider ml-1">{t('settings.account')}</h3>
+            <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-700 overflow-hidden divide-y divide-gray-100 dark:divide-slate-700">
+               
+               <div 
+                  onClick={() => setShowPasswordModal(true)}
+                  className="p-4 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-slate-750 cursor-pointer transition-colors"
+               >
+                  <div className="flex items-center gap-3">
+                     <div className="p-2 bg-blue-50 dark:bg-blue-900/20 rounded-lg text-blue-600 dark:text-blue-400">
+                        <Shield size={20} />
+                     </div>
+                     <div>
+                        <p className="font-medium text-slate-900 dark:text-white">{t('settings.password')}</p>
+                        <p className="text-xs text-gray-500 dark:text-gray-400">{t('settings.password_desc')}</p>
+                     </div>
+                  </div>
+                  <ChevronRight size={18} className="text-gray-400" />
+               </div>
+
+               <div 
+                  onClick={() => setShowPlansModal(true)}
+                  className="p-4 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-slate-750 cursor-pointer transition-colors"
+               >
+                  <div className="flex items-center gap-3">
+                     <div className="p-2 bg-purple-50 dark:bg-purple-900/20 rounded-lg text-purple-600 dark:text-purple-400">
+                        <CreditCard size={20} />
+                     </div>
+                     <div>
+                        <p className="font-medium text-slate-900 dark:text-white">{t('settings.subscription')}</p>
+                        <p className="text-xs text-gray-500 dark:text-gray-400">Plano {plan} ({plan === 'Free' ? `${CURRENT_USER.maxSearches - CURRENT_USER.searchesUsed} pesquisas restantes` : 'Ilimitado'})</p>
+                     </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                      {plan === 'Free' && (
+                          <span className="text-xs font-bold bg-indigo-600 text-white px-3 py-1 rounded-lg">
+                              Upgrade
+                          </span>
+                      )}
+                      <ChevronRight size={18} className="text-gray-400" />
+                  </div>
+               </div>
+
+            </div>
+         </div>
+
+         {/* App Settings */}
+         <div className="space-y-4">
+            <h3 className="text-sm font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider ml-1">{t('settings.preferences')}</h3>
+            {/* Removed overflow-hidden to let dropdown appear */}
+            <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-700 divide-y divide-gray-100 dark:divide-slate-700 relative">
+               
+               <div className="p-4 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-slate-750 cursor-pointer transition-colors rounded-t-2xl">
+                  <div className="flex items-center gap-3">
+                     <div className={`p-2 rounded-lg ${notificationsEnabled ? 'bg-orange-50 dark:bg-orange-900/20 text-orange-600 dark:text-orange-400' : 'bg-gray-100 text-gray-400'}`}>
+                        <Bell size={20} />
+                     </div>
+                     <div>
+                        <p className="font-medium text-slate-900 dark:text-white">{t('settings.notifications')}</p>
+                        <p className="text-xs text-gray-500 dark:text-gray-400">
+                            {notificationsEnabled ? 'Ativadas (Email, Push, WA)' : 'Desativadas'}
+                        </p>
+                     </div>
+                  </div>
+                  <div className="relative inline-block w-10 mr-2 align-middle select-none transition duration-200 ease-in">
+                      <input 
+                        type="checkbox" 
+                        checked={notificationsEnabled}
+                        onChange={toggleNotifications}
+                        className="toggle-checkbox absolute block w-5 h-5 rounded-full bg-white border-4 appearance-none cursor-pointer right-0"
+                        style={{ right: notificationsEnabled ? '0' : '50%', borderColor: notificationsEnabled ? '#4F46E5' : '#ccc' }}
+                      />
+                      <label 
+                        onClick={toggleNotifications}
+                        className={`toggle-label block overflow-hidden h-5 rounded-full cursor-pointer ${notificationsEnabled ? 'bg-indigo-600' : 'bg-gray-300'}`}
+                      ></label>
+                  </div>
+               </div>
+
+               {/* Custom Language Dropdown Row */}
+               <div ref={languageRef} className="relative rounded-b-2xl">
+                  <div 
+                     onClick={() => setIsLanguageOpen(!isLanguageOpen)}
+                     className="p-4 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-slate-750 cursor-pointer transition-colors rounded-b-2xl"
+                  >
+                     <div className="flex items-center gap-3">
+                        <div className="p-2 bg-gray-50 dark:bg-slate-700 rounded-lg text-gray-600 dark:text-gray-300">
+                           <Globe size={20} />
+                        </div>
+                        <div>
+                           <p className="font-medium text-slate-900 dark:text-white">{t('settings.language')}</p>
+                           <p className="text-xs text-gray-500 dark:text-gray-400">
+                              {getLanguageLabel(language)}
+                           </p>
+                        </div>
+                     </div>
+                     <ChevronRight size={18} className={`text-gray-400 transition-transform duration-200 ${isLanguageOpen ? 'rotate-90' : ''}`} />
+                  </div>
+
+                  {/* Dropdown Menu */}
+                  {isLanguageOpen && (
+                     <div className="absolute top-full right-0 mt-2 w-full md:w-64 bg-white dark:bg-slate-800 rounded-xl shadow-2xl border border-gray-100 dark:border-slate-700 overflow-hidden animate-in fade-in zoom-in-95 duration-200 z-50">
+                        {['pt-PT', 'pt-BR', 'en', 'fr'].map((lang) => (
+                           <button
+                              key={lang}
+                              onClick={() => handleSelectLanguage(lang)}
+                              className={`w-full flex items-center justify-between px-4 py-3 text-sm transition-colors text-left
+                                 ${language === lang 
+                                    ? 'bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 font-bold' 
+                                    : 'text-slate-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-750'
+                                 }
+                              `}
+                           >
+                              <div className="flex items-center gap-2">
+                                  <span className="w-5 text-center">{lang === 'en' ? '🇺🇸' : lang === 'fr' ? '🇫🇷' : lang === 'pt-BR' ? '🇧🇷' : '🇵🇹'}</span>
+                                  <span>{getLanguageLabel(lang)}</span>
+                              </div>
+                              {language === lang && <CheckCircle size={16} />}
+                           </button>
+                        ))}
+                     </div>
+                  )}
+               </div>
+
+            </div>
+         </div>
 
       </div>
+
+      {/* CHANGE PASSWORD MODAL */}
+      {showPasswordModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+              <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-sm p-6 relative animate-in zoom-in-95 duration-200">
+                  <button onClick={() => setShowPasswordModal(false)} className="absolute top-4 right-4 text-gray-400 hover:text-slate-900 dark:hover:text-white transition-colors">
+                      <X size={20} />
+                  </button>
+                  
+                  <div className="flex items-center gap-3 mb-6">
+                      <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg text-blue-600">
+                          <Lock size={20} />
+                      </div>
+                      <h3 className="text-xl font-bold text-slate-900 dark:text-white">{t('settings.password')}</h3>
+                  </div>
+
+                  <form onSubmit={handlePasswordChange} className="space-y-4">
+                      <div>
+                          <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Senha Antiga</label>
+                          <input 
+                              type="password"
+                              className="w-full px-4 py-2 bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-700 rounded-lg outline-none focus:ring-2 focus:ring-indigo-500 text-slate-900 dark:text-white"
+                              value={passwordForm.old}
+                              onChange={e => setPasswordForm({...passwordForm, old: e.target.value})}
+                              required
+                          />
+                      </div>
+                      <div>
+                          <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Nova Senha</label>
+                          <input 
+                              type="password"
+                              className="w-full px-4 py-2 bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-700 rounded-lg outline-none focus:ring-2 focus:ring-indigo-500 text-slate-900 dark:text-white"
+                              value={passwordForm.new}
+                              onChange={e => setPasswordForm({...passwordForm, new: e.target.value})}
+                              required
+                          />
+                      </div>
+                      <div>
+                          <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Confirmar Nova Senha</label>
+                          <input 
+                              type="password"
+                              className="w-full px-4 py-2 bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-700 rounded-lg outline-none focus:ring-2 focus:ring-indigo-500 text-slate-900 dark:text-white"
+                              value={passwordForm.confirm}
+                              onChange={e => setPasswordForm({...passwordForm, confirm: e.target.value})}
+                              required
+                          />
+                      </div>
+
+                      <button 
+                          type="submit"
+                          className="w-full py-3 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-colors shadow-lg shadow-indigo-500/20 mt-4"
+                      >
+                          Atualizar Senha
+                      </button>
+                  </form>
+              </div>
+          </div>
+      )}
+
+      {/* PLANS MODAL */}
+      {showPlansModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+              <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-2xl w-full max-w-4xl overflow-hidden relative grid grid-cols-1 md:grid-cols-2 animate-in zoom-in-95 duration-200">
+                  <button onClick={() => setShowPlansModal(false)} className="absolute top-4 right-4 z-10 p-2 bg-white/20 hover:bg-white/40 rounded-full text-white md:text-gray-500 transition-colors">
+                      <X size={24} />
+                  </button>
+
+                  {/* Left Side: Marketing */}
+                  <div className="bg-indigo-600 p-12 text-white flex flex-col justify-between relative overflow-hidden">
+                      <div className="absolute top-0 left-0 w-full h-full opacity-20 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')]"></div>
+                      <div className="relative z-10">
+                          <div className="w-16 h-16 bg-white/20 rounded-2xl flex items-center justify-center mb-8 backdrop-blur-lg">
+                              <Crown size={32} className="text-yellow-300" />
+                          </div>
+                          <h2 className="text-4xl font-bold mb-4">{t('settings.modal.plans')}</h2>
+                          <p className="text-indigo-100 text-lg leading-relaxed">
+                              {t('settings.modal.marketing')}
+                          </p>
+                      </div>
+                      <div className="space-y-4 relative z-10 mt-8">
+                          <div className="flex items-center gap-3">
+                              <CheckCircle className="text-green-400" />
+                              <span className="font-medium">{t('settings.modal.unlimited')}</span>
+                          </div>
+                          <div className="flex items-center gap-3">
+                              <CheckCircle className="text-green-400" />
+                              <span className="font-medium">{t('settings.modal.leads')}</span>
+                          </div>
+                          <div className="flex items-center gap-3">
+                              <CheckCircle className="text-green-400" />
+                              <span className="font-medium">Microsite Premium</span>
+                          </div>
+                      </div>
+                  </div>
+
+                  {/* Right Side: Plans */}
+                  <div className="p-12 flex flex-col justify-center bg-white dark:bg-slate-900">
+                      <h3 className="text-2xl font-bold text-slate-900 dark:text-white mb-8 text-center">{t('settings.modal.choose')}</h3>
+                      
+                      <div className="space-y-4">
+                          {/* Free Plan */}
+                          <div className={`border rounded-xl p-4 flex justify-between items-center transition-all ${plan === 'Free' ? 'border-green-500 bg-green-50 dark:bg-green-900/10' : 'border-gray-200 dark:border-slate-700 opacity-60'}`}>
+                              <div>
+                                  <p className="font-bold text-slate-900 dark:text-white">Starter (Gratuito)</p>
+                                  <p className="text-xs text-gray-500">2 pesquisas / mês</p>
+                              </div>
+                              {plan === 'Free' ? (
+                                  <span className="text-sm font-bold text-green-600 flex items-center gap-1"><CheckCircle size={14} /> Atual</span>
+                              ) : (
+                                  <button onClick={() => { setPlan('Free'); CURRENT_USER.plan = 'Free'; CURRENT_USER.maxSearches = 2; window.dispatchEvent(new Event('user-profile-updated')); setShowPlansModal(false); }} className="text-sm font-medium text-gray-500 hover:text-slate-900">Selecionar</button>
+                              )}
+                          </div>
+
+                          {/* Pro Plan */}
+                          <div className={`border-2 rounded-xl p-6 relative shadow-lg transition-all ${plan === 'Pro' ? 'border-indigo-600 bg-indigo-50 dark:bg-indigo-900/10' : 'border-gray-200 dark:border-slate-700 hover:border-indigo-300'}`}>
+                              {plan !== 'Pro' && (
+                                  <div className="absolute -top-3 right-4 bg-indigo-600 text-white text-[10px] font-bold px-2 py-1 rounded-full uppercase">
+                                      Recomendado
+                                  </div>
+                              )}
+                              <div className="flex justify-between items-center mb-2">
+                                  <p className="font-bold text-indigo-900 dark:text-indigo-300 text-lg">ImobCurator Pro</p>
+                                  <p className="font-bold text-2xl text-slate-900 dark:text-white">€9.99<span className="text-sm font-normal text-gray-500">/mês</span></p>
+                              </div>
+                              <ul className="space-y-2 mb-6">
+                                  <li className="text-sm text-gray-600 dark:text-gray-300 flex items-center gap-2"><CheckCircle size={14} className="text-green-500"/> {t('settings.modal.unlimited')}</li>
+                                  <li className="text-sm text-gray-600 dark:text-gray-300 flex items-center gap-2"><CheckCircle size={14} className="text-green-500"/> Gestão de Visitas Avançada</li>
+                              </ul>
+                              {plan === 'Pro' ? (
+                                  <div className="w-full py-3 bg-green-100 text-green-700 rounded-lg font-bold flex items-center justify-center gap-2">
+                                      <CheckCircle size={18} /> Plano Ativo
+                                  </div>
+                              ) : (
+                                  <button 
+                                      onClick={handleUpgrade}
+                                      className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-bold shadow-lg shadow-indigo-500/30 transition-all flex items-center justify-center gap-2"
+                                  >
+                                      <Lock size={16} /> Desbloquear Agora
+                                  </button>
+                              )}
+                          </div>
+                      </div>
+                      
+                      <p className="text-center text-xs text-gray-400 mt-6">
+                          Pagamento seguro. Cancele a qualquer momento.
+                      </p>
+                  </div>
+              </div>
+          </div>
+      )}
+
     </div>
   );
 };

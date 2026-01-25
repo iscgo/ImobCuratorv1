@@ -1,80 +1,49 @@
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="en" class="dark">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>ImobCurator 3.0 | Protocolo de Curadoria</title>
-    
-    <!-- Fonts -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Space+Grotesk:wght@300;400;600;700&display=swap" rel="stylesheet">
-    
-    <!-- Tailwind CSS -->
+    <title>ImobCurator</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <script>
       tailwind.config = {
+        darkMode: 'class',
         theme: {
           extend: {
             fontFamily: {
-              sans: ['Space Grotesk', 'sans-serif'],
-              mono: ['JetBrains Mono', 'monospace'],
+              sans: ['Inter', 'sans-serif'],
             },
-            animation: {
-              'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+            colors: {
+              slate: {
+                750: '#2d3748', // Custom dark shade
+                850: '#1a202c', // Darker background
+                900: '#0f172a', // Deepest background
+              }
             }
-          }
-        }
+          },
+        },
       }
     </script>
-    
     <style>
       body {
-        background-color: #030305;
-        margin: 0;
-        -webkit-font-smoothing: antialiased;
-      }
-      /* Hide scrollbar for cleaner look */
-      ::-webkit-scrollbar {
-        width: 8px;
-        background: #030305;
-      }
-      ::-webkit-scrollbar-thumb {
-        background: #333;
-        border-radius: 4px;
-      }
-      
-      .perspective-1000 {
-        perspective: 1000px;
-      }
-      
-      .laptop-lid {
-        transform-origin: bottom;
-        transition: transform 1.5s ease-in-out;
-      }
-      
-      .laptop-open .laptop-lid {
-        transform: rotateX(0deg);
-      }
-      
-      .laptop-closed .laptop-lid {
-        transform: rotateX(-90deg);
+        font-family: 'Inter', sans-serif;
       }
     </style>
   <script type="importmap">
 {
   "imports": {
+    "lucide-react": "https://esm.sh/lucide-react@^0.563.0",
+    "react-router-dom": "https://esm.sh/react-router-dom@^7.13.0",
+    "react/": "https://esm.sh/react@^19.2.3/",
     "react": "https://esm.sh/react@^19.2.3",
     "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
-    "react/": "https://esm.sh/react@^19.2.3/",
-    "lucide-react": "https://esm.sh/lucide-react@^0.563.0",
-    "framer-motion": "https://esm.sh/framer-motion@^12.29.0",
-    "@google/genai": "https://esm.sh/@google/genai@0.1.2"
+    "@google/genai": "https://esm.sh/@google/genai"
   }
 }
 </script>
 </head>
-  <body>
+  <body class="bg-gray-50 dark:bg-slate-900 text-slate-900 dark:text-white transition-colors duration-200">
     <div id="root"></div>
   </body>
 </html>

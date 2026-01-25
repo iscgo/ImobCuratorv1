@@ -1,17 +1,72 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Sidebar } from './components/Sidebar';
 import { Header } from './components/Header';
-import { Login } from './pages/Login';
 import { Dashboard } from './pages/Dashboard';
+import { ClientPortal } from './pages/ClientPortal';
+import { VisitDetail } from './pages/VisitDetail'; 
+import { Visits } from './pages/Visits'; 
+import { PropertyImport } from './pages/PropertyImport';
+import { Properties } from './pages/Properties';
+import { PropertyDetail } from './pages/PropertyDetail';
+import { ClientManager } from './pages/ClientManager';
+import { Reports } from './pages/Reports';
 import { Settings } from './pages/Settings';
+import { Login } from './pages/Login';
 import { LanguageProvider } from './contexts/LanguageContext';
-import { MOCK_USER } from './constants';
-import { UserProfile } from './types';
 
-export default function App() {
+interface LayoutProps {
+  children: React.ReactNode;
+  onLogout: () => void;
+}
+
+const Layout: React.FC<LayoutProps> = ({ children, onLogout }) => {
+  const [darkMode, setDarkMode] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  useEffect(() => {
+    if (darkMode) {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  }, [darkMode]);
+
+  const toggleTheme = () => setDarkMode(!darkMode);
+  const toggleSidebar = () => setSidebarOpen(!sidebarOpen);
+
+  return (
+    <div className="flex min-h-screen bg-gray-50 dark:bg-slate-900 transition-colors duration-200">
+      {/* Mobile Sidebar Overlay */}
+      {sidebarOpen && (
+        <div 
+          className="fixed inset-0 bg-black/50 z-20 md:hidden"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+      
+      {/* Sidebar Wrapper for Mobile Toggle */}
+      <div className={`fixed inset-y-0 left-0 z-30 transform transition-transform duration-300 ease-in-out md:relative md:translate-x-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+         <Sidebar onLogout={onLogout} />
+      </div>
+
+      <div className="flex-1 flex flex-col min-w-0">
+        <Header 
+            darkMode={darkMode} 
+            toggleTheme={toggleTheme} 
+            toggleSidebar={toggleSidebar}
+        />
+        <main className="flex-1 overflow-y-auto">
+          {children}
+        </main>
+      </div>
+    </div>
+  );
+};
+
+const App: React.FC = () => {
+  // Estado de Autenticação (Persiste em memória apenas para demo)
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [currentPage, setCurrentPage] = useState('dashboard');
-  const [user, setUser] = useState<UserProfile>(MOCK_USER);
 
   const handleLogin = () => {
     setIsAuthenticated(true);
@@ -19,56 +74,34 @@ export default function App() {
 
   const handleLogout = () => {
     setIsAuthenticated(false);
-    setCurrentPage('dashboard');
   };
 
-  const updateUser = (updates: Partial<UserProfile>) => {
-    setUser(prev => ({ ...prev, ...updates }));
-  };
-
-  // Routing Logic
-  const renderPage = () => {
-    switch (currentPage) {
-      case 'dashboard':
-        return <Dashboard user={user} onNavigate={setCurrentPage} />;
-      case 'settings':
-        return <Settings user={user} onUpdateUser={updateUser} />;
-      case 'import':
-        return <div className="p-8 text-white">Import (To be implemented)</div>; // Placeholder for next steps
-      case 'clients':
-        return <div className="p-8 text-white">Clients (To be implemented)</div>;
-      case 'properties':
-        return <div className="p-8 text-white">Properties (To be implemented)</div>;
-      case 'visits':
-        return <div className="p-8 text-white">Visits (To be implemented)</div>;
-      case 'reports':
-        return <div className="p-8 text-white">Reports (To be implemented)</div>;
-      default:
-        return <Dashboard user={user} onNavigate={setCurrentPage} />;
-    }
-  };
+  if (!isAuthenticated) {
+    return <Login onLogin={handleLogin} />;
+  }
 
   return (
     <LanguageProvider>
-      <div className="bg-[#030305] min-h-screen text-white font-sans selection:bg-purple-500/30 selection:text-purple-200">
-        {!isAuthenticated ? (
-          <Login onLogin={handleLogin} />
-        ) : (
-          <div className="flex">
-            <Sidebar 
-                currentPage={currentPage} 
-                onNavigate={setCurrentPage} 
-                onLogout={handleLogout} 
-            />
-            <div className="flex-1 md:ml-64 transition-all duration-300">
-              <Header user={user} />
-              <main className="pt-20 min-h-screen">
-                 {renderPage()}
-              </main>
-            </div>
-          </div>
-        )}
-      </div>
+      <HashRouter>
+        <Layout onLogout={handleLogout}>
+          <Routes>
+            <Route path="/" element={<Dashboard />} />
+            <Route path="/visits" element={<Visits />} /> 
+            <Route path="/import" element={<PropertyImport />} />
+            <Route path="/clients" element={<ClientPortal />} />
+            <Route path="/clients/:id" element={<ClientManager />} />
+            <Route path="/properties" element={<Properties />} />
+            <Route path="/properties/:id" element={<PropertyDetail />} />
+            <Route path="/analytics" element={<Reports />} />
+            <Route path="/settings" element={<Settings />} />
+            
+            {/* Redirects */}
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </Layout>
+      </HashRouter>
     </LanguageProvider>
   );
-}
+};
+
+export default App;
