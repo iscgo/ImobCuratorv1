@@ -13,7 +13,7 @@
     "react-router-dom": "^7.13.0",
     "react": "^19.2.3",
     "react-dom": "^19.2.3",
-    "@google/genai": "latest"
+    "openai": "^4.52.0"
   },
   "devDependencies": {
     "@types/node": "^22.14.0",

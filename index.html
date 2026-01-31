@@ -16,9 +16,9 @@
             },
             colors: {
               slate: {
-                750: '#2d3748', // Custom dark shade
-                850: '#1a202c', // Darker background
-                900: '#0f172a', // Deepest background
+                750: '#2d3748',
+                850: '#1a202c',
+                900: '#0f172a',
               }
             }
           },
@@ -30,20 +30,9 @@
         font-family: 'Inter', sans-serif;
       }
     </style>
-  <script type="importmap">
-{
-  "imports": {
-    "lucide-react": "https://esm.sh/lucide-react@^0.563.0",
-    "react-router-dom": "https://esm.sh/react-router-dom@^7.13.0",
-    "react/": "https://esm.sh/react@^19.2.3/",
-    "react": "https://esm.sh/react@^19.2.3",
-    "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
-    "@google/genai": "https://esm.sh/@google/genai"
-  }
-}
-</script>
-</head>
+  </head>
   <body class="bg-gray-50 dark:bg-slate-900 text-slate-900 dark:text-white transition-colors duration-200">
     <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
