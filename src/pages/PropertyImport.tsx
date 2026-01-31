@@ -6,10 +6,11 @@ import {
   BedDouble, Bath, Ruler, Trees, Flame, Car,
   ChevronRight, Euro, Filter, MessageSquare, RefreshCw, PlusCircle, Mail, Lock, Crown
 } from 'lucide-react';
-import aiService from '../services/aiService';
+import { propertySearchService } from '../services/propertySearchService';
 import { CURRENT_USER } from '../constants';
 import { Property, PropertyStatus, Client } from '../types';
 import { getClients, addClient, addProperty } from '../utils/storage';
+import { createClientAddedActivity, createProposalSentActivity } from '../utils/activityHelpers';
 
 interface PropertyMatch {
   title: string;
@@ -112,22 +113,25 @@ export const PropertyImport: React.FC = () => {
 
     try {
       const amenities = [];
-      if (criteria.hasGarden) amenities.push("Jardim ou Terraço");
-      if (criteria.hasHeating) amenities.push("Aquecimento Central ou Ar Condicionado");
-      if (criteria.hasGarage) amenities.push("Garagem ou Estacionamento");
+      if (criteria.hasGarden) amenities.push("Jardim");
+      if (criteria.hasHeating) amenities.push("Aquecimento");
+      if (criteria.hasGarage) amenities.push("Garagem");
       if (criteria.hasPool) amenities.push("Piscina");
 
-      // Call OpenAI-powered search service
-      const results = await aiService.searchProperties({
-        type: criteria.type,
-        location: criteria.location,
-        budget: criteria.budgetMax,
-        bedrooms: criteria.bedrooms,
-        bathrooms: criteria.bathrooms,
-        area: criteria.areaMin,
-        amenities,
-        otherRequirements: criteria.otherRequirements
-      });
+      // Use new propertySearchService with AI_ENHANCED strategy (Google Gemini)
+      const results = await propertySearchService.search(
+        {
+          type: criteria.type,
+          location: criteria.location,
+          budget: criteria.budgetMax,
+          bedrooms: criteria.bedrooms,
+          bathrooms: criteria.bathrooms,
+          area: criteria.areaMin,
+          amenities,
+          otherRequirements: criteria.otherRequirements
+        },
+        'AI_ENHANCED' // Uses Google Gemini API
+      );
 
       if (results && results.length > 0) {
         // Filter out excluded URLs
@@ -142,13 +146,15 @@ export const PropertyImport: React.FC = () => {
         } else {
           setSearchResults(validMatches.sort((a, b) => b.matchScore - a.matchScore));
         }
+
+        setSearchStatus('');
       } else {
-        setSearchStatus('Não foram encontrados imóveis ativos com estes critérios. Tente ampliar a zona ou o orçamento.');
+        setSearchStatus('Não foram encontrados imóveis. Tente ampliar os critérios.');
       }
 
     } catch (error) {
       console.error("Erro na busca:", error);
-      setSearchStatus('Erro de conexão com a IA. Verifique a chave de API e tente novamente.');
+      setSearchStatus('Erro na busca. Tente novamente.');
     } finally {
       setIsSearching(false);
     }
@@ -176,6 +182,8 @@ export const PropertyImport: React.FC = () => {
             attentionNeeded: false
         };
         addClient(targetClient);
+        // Criar atividade de novo cliente
+        createClientAddedActivity(targetClient.name);
     } else {
         // Atualizar cliente existente
         targetClient.lastActivity = 'Agora mesmo';
@@ -212,7 +220,10 @@ export const PropertyImport: React.FC = () => {
     // 4. Add to storage
     addProperty(newProperty);
 
-    // 5. Update UI State
+    // 5. Criar atividade de proposta enviada
+    createProposalSentActivity(targetClient.name, newProperty.title);
+
+    // 6. Update UI State
     setAddedProperties(prev => new Set(prev).add(match.url));
 
     console.log(`Cliente ${targetClient.name} salvo/atualizado com sucesso.`);

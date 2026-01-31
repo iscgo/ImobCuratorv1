@@ -7,6 +7,7 @@ import { Link, useLocation } from 'react-router-dom';
 import aiService from '../services/aiService';
 import { getProperties, saveProperties, deleteProperty as deletePropertyStorage } from '../utils/storage';
 import { Property, PropertyStatus } from '../types';
+import { createPropertyAddedActivity } from '../utils/activityHelpers';
 
 export const Properties: React.FC = () => {
   const location = useLocation();
@@ -110,6 +111,9 @@ export const Properties: React.FC = () => {
     setProperties(newStats);
     saveProperties(newStats);
 
+    // Criar atividade de imóvel adicionado
+    createPropertyAddedActivity(property.title, property.price);
+
     setIsAddModalOpen(false);
     // Reset form
     setNewProperty({
@@ -148,10 +152,10 @@ export const Properties: React.FC = () => {
         <div>
           <h1 className="text-3xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
             <Home className="text-indigo-500" />
-            Gestão de Imóveis
+            Meu Portfólio de Imóveis
           </h1>
           <p className="text-gray-500 dark:text-gray-400 mt-1">
-            Gerencie todo o seu portfólio de curadoria em um só lugar.
+            Gerencie os imóveis que você está a vender. Adicione manualmente ou importe de portais.
           </p>
         </div>
         <button 

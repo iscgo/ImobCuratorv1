@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { NavLink } from 'react-router-dom';
 import { LayoutDashboard, Users, Building2, Calendar, PieChart, Settings, LogOut, Sparkles, AlertTriangle } from 'lucide-react';
 import { useLanguage } from '../contexts/LanguageContext';
+import { checkAndCreateFeedbackNotifications, getUnreadCount } from '../utils/notificationHelper';
 
 interface SidebarProps {
   onLogout: () => void;
@@ -9,7 +10,22 @@ interface SidebarProps {
 
 export const Sidebar: React.FC<SidebarProps> = ({ onLogout }) => {
   const [showLogoutModal, setShowLogoutModal] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
   const { t } = useLanguage();
+
+  // Verificar notificações pendentes ao carregar
+  useEffect(() => {
+    checkAndCreateFeedbackNotifications();
+    setUnreadCount(getUnreadCount());
+
+    // Atualizar a cada 30 segundos
+    const interval = setInterval(() => {
+      checkAndCreateFeedbackNotifications();
+      setUnreadCount(getUnreadCount());
+    }, 30000);
+
+    return () => clearInterval(interval);
+  }, []);
 
   const navItems = [
     { icon: LayoutDashboard, label: t('nav.dashboard'), path: '/' },
@@ -41,7 +57,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onLogout }) => {
               key={item.path}
               to={item.path}
               className={({ isActive }) =>
-                `flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 group ${
+                `flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 group relative ${
                   isActive
                     ? 'bg-indigo-600 text-white font-medium shadow-md shadow-indigo-500/20'
                     : 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white'
@@ -52,6 +68,12 @@ export const Sidebar: React.FC<SidebarProps> = ({ onLogout }) => {
                 <>
                   <item.icon size={20} className={isActive ? 'text-white' : 'group-hover:text-indigo-600 dark:group-hover:text-indigo-400'} />
                   {item.label}
+                  {/* Badge de notificações para Relatórios */}
+                  {item.path === '/analytics' && unreadCount > 0 && (
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 bg-red-500 text-white text-xs font-bold w-5 h-5 flex items-center justify-center rounded-full animate-pulse">
+                      {unreadCount}
+                    </span>
+                  )}
                 </>
               )}
             </NavLink>

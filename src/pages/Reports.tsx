@@ -11,8 +11,12 @@ import {
   getReputation,
   getLossReasonsPercentage,
   getDealsThisMonth,
-  PendingFeedback
+  PendingFeedback,
+  addDeal
 } from '../utils/deals';
+import { getPendingFeedbackVisits, autoCompleteOldVisits } from '../utils/visitFeedbackHelper';
+import { createDealClosedActivity, createDealLostActivity } from '../utils/activityHelpers';
+import { getProperties } from '../utils/storage';
 
 // --- RANKING CONFIGURATION ---
 const RANK_TIERS = [
@@ -204,9 +208,26 @@ export const Reports: React.FC = () => {
   const [reputationState, setReputationState] = useState(getReputation());
   const [showRankingModal, setShowRankingModal] = useState(false);
 
+  // Estados de Feedback de Visitas
+  const [pendingVisits, setPendingVisits] = useState<PendingFeedback[]>([]);
+  const [currentFeedbackIndex, setCurrentFeedbackIndex] = useState(0);
+  const [showFeedbackModal, setShowFeedbackModal] = useState(false);
+  const [feedbackOutcome, setFeedbackOutcome] = useState<'won' | 'lost' | null>(null);
+  const [lossReason, setLossReason] = useState('');
+  const [showCelebration, setShowCelebration] = useState(false);
+
   // Load data on mount
   useEffect(() => {
     loadData();
+    // Auto-completar visitas antigas
+    autoCompleteOldVisits();
+    // Carregar visitas pendentes de feedback
+    const pending = getPendingFeedbackVisits();
+    setPendingVisits(pending);
+    // Abrir modal automaticamente se houver visitas pendentes
+    if (pending.length > 0) {
+      setShowFeedbackModal(true);
+    }
   }, []);
 
   const loadData = () => {
@@ -251,7 +272,68 @@ export const Reports: React.FC = () => {
   };
 
 
-  // Funções de feedback removidas - serão implementadas com backend real
+  // Handlers de Feedback
+  const handleFeedbackSubmit = () => {
+    if (!feedbackOutcome) return;
+
+    const currentVisit = pendingVisits[currentFeedbackIndex];
+    if (!currentVisit) return;
+
+    // Buscar dados da propriedade para preço e comissão
+    const properties = getProperties();
+    const property = properties.find(p => p.id === currentVisit.propertyId);
+    const propertyPrice = property?.price || 0;
+    const commission = feedbackOutcome === 'won' ? propertyPrice * 0.03 : undefined; // 3% de comissão estimada
+
+    // Criar deal
+    addDeal({
+      clientId: currentVisit.clientId,
+      clientName: currentVisit.clientName,
+      propertyId: currentVisit.propertyId,
+      propertyTitle: currentVisit.propertyTitle,
+      propertyPrice: propertyPrice,
+      outcome: feedbackOutcome,
+      lossReason: feedbackOutcome === 'lost' ? lossReason : undefined,
+      commission: commission
+    });
+
+    // Criar atividade
+    if (feedbackOutcome === 'won') {
+      createDealClosedActivity(currentVisit.clientName, currentVisit.propertyTitle, commission);
+      setShowCelebration(true);
+    } else {
+      createDealLostActivity(currentVisit.clientName, lossReason);
+    }
+
+    // Atualizar dados
+    loadData();
+
+    // Próxima visita ou fechar modal
+    if (currentFeedbackIndex < pendingVisits.length - 1) {
+      setCurrentFeedbackIndex(currentFeedbackIndex + 1);
+      setFeedbackOutcome(null);
+      setLossReason('');
+    } else {
+      setShowFeedbackModal(false);
+      setPendingVisits([]);
+      setCurrentFeedbackIndex(0);
+    }
+  };
+
+  const handleSkipFeedback = () => {
+    // Próxima visita ou fechar modal
+    if (currentFeedbackIndex < pendingVisits.length - 1) {
+      setCurrentFeedbackIndex(currentFeedbackIndex + 1);
+      setFeedbackOutcome(null);
+      setLossReason('');
+    } else {
+      setShowFeedbackModal(false);
+      setPendingVisits([]);
+      setCurrentFeedbackIndex(0);
+    }
+  };
+
+  const currentPendingVisit = pendingVisits[currentFeedbackIndex];
 
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-8 pb-24">
@@ -578,7 +660,147 @@ export const Reports: React.FC = () => {
         </div>
       )}
 
-      {/* MODAL de feedback removido - será implementado com backend */}
+      {/* MODAL de FEEDBACK DE VISITAS */}
+      {showFeedbackModal && currentPendingVisit && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-in fade-in duration-300">
+          <div className="w-full max-w-2xl bg-white dark:bg-slate-800 rounded-3xl overflow-hidden shadow-2xl border border-gray-200 dark:border-slate-700 animate-in zoom-in-95 duration-300">
+
+            {/* Header */}
+            <div className="bg-gradient-to-r from-indigo-600 to-purple-600 p-6 text-white relative">
+              <div className="absolute top-4 right-4 text-xs bg-white/20 px-3 py-1 rounded-full font-medium">
+                {currentFeedbackIndex + 1} de {pendingVisits.length}
+              </div>
+              <h3 className="text-2xl font-bold mb-2">Como foi a visita?</h3>
+              <p className="text-indigo-100 text-sm">
+                A visita de <strong>{currentPendingVisit.clientName}</strong> foi em{' '}
+                {new Date(currentPendingVisit.date).toLocaleDateString('pt-PT', {
+                  day: 'numeric',
+                  month: 'long',
+                  year: 'numeric'
+                })}
+              </p>
+            </div>
+
+            {/* Detalhes da Visita */}
+            <div className="p-6 border-b border-gray-100 dark:border-slate-700">
+              <div className="flex items-center gap-4">
+                <img
+                  src={currentPendingVisit.clientAvatar}
+                  alt={currentPendingVisit.clientName}
+                  className="w-16 h-16 rounded-full object-cover border-4 border-gray-100 dark:border-slate-700"
+                />
+                <div className="flex-1">
+                  <h4 className="font-bold text-lg text-slate-900 dark:text-white">
+                    {currentPendingVisit.propertyTitle}
+                  </h4>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">
+                    Cliente: {currentPendingVisit.clientName}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Pergunta Principal */}
+            <div className="p-6 space-y-6">
+              <div>
+                <p className="text-center text-gray-700 dark:text-gray-300 font-medium mb-4">
+                  O cliente comprou o imóvel?
+                </p>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <button
+                    onClick={() => setFeedbackOutcome('won')}
+                    className={`p-6 rounded-xl border-2 transition-all ${
+                      feedbackOutcome === 'won'
+                        ? 'bg-green-50 dark:bg-green-900/20 border-green-500 shadow-lg shadow-green-500/20'
+                        : 'bg-gray-50 dark:bg-slate-750 border-gray-200 dark:border-slate-600 hover:border-green-300'
+                    }`}
+                  >
+                    <div className="flex flex-col items-center gap-3">
+                      <div className={`w-16 h-16 rounded-full flex items-center justify-center ${
+                        feedbackOutcome === 'won'
+                          ? 'bg-green-500 text-white'
+                          : 'bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400'
+                      }`}>
+                        <CheckCircle size={32} />
+                      </div>
+                      <p className="font-bold text-lg text-slate-900 dark:text-white">Sim, Vendeu!</p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">Parabéns pela venda</p>
+                    </div>
+                  </button>
+
+                  <button
+                    onClick={() => setFeedbackOutcome('lost')}
+                    className={`p-6 rounded-xl border-2 transition-all ${
+                      feedbackOutcome === 'lost'
+                        ? 'bg-orange-50 dark:bg-orange-900/20 border-orange-500 shadow-lg shadow-orange-500/20'
+                        : 'bg-gray-50 dark:bg-slate-750 border-gray-200 dark:border-slate-600 hover:border-orange-300'
+                    }`}
+                  >
+                    <div className="flex flex-col items-center gap-3">
+                      <div className={`w-16 h-16 rounded-full flex items-center justify-center ${
+                        feedbackOutcome === 'lost'
+                          ? 'bg-orange-500 text-white'
+                          : 'bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400'
+                      }`}>
+                        <XCircle size={32} />
+                      </div>
+                      <p className="font-bold text-lg text-slate-900 dark:text-white">Não Vendeu</p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">Registar feedback</p>
+                    </div>
+                  </button>
+                </div>
+              </div>
+
+              {/* Motivo da Perda (se não vendeu) */}
+              {feedbackOutcome === 'lost' && (
+                <div className="animate-in fade-in slide-in-from-top-4 duration-300">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Motivo da não-venda
+                  </label>
+                  <select
+                    value={lossReason}
+                    onChange={e => setLossReason(e.target.value)}
+                    className="w-full px-4 py-3 bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-600 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
+                  >
+                    <option value="">Selecione um motivo...</option>
+                    <option value="Preço Alto">Preço Alto</option>
+                    <option value="Localização">Localização</option>
+                    <option value="Estado do Imóvel">Estado do Imóvel</option>
+                    <option value="Financiamento Negado">Financiamento Negado</option>
+                    <option value="Encontrou Outra Opção">Encontrou Outra Opção</option>
+                    <option value="Desistiu da Compra">Desistiu da Compra</option>
+                    <option value="Outro">Outro</option>
+                  </select>
+                </div>
+              )}
+
+              {/* Ações */}
+              <div className="flex gap-3 pt-4">
+                <button
+                  onClick={handleSkipFeedback}
+                  className="flex-1 py-3 bg-gray-100 dark:bg-slate-700 text-gray-700 dark:text-gray-300 rounded-xl font-medium hover:bg-gray-200 dark:hover:bg-slate-600 transition-colors"
+                >
+                  Pular Agora
+                </button>
+                <button
+                  onClick={handleFeedbackSubmit}
+                  disabled={!feedbackOutcome || (feedbackOutcome === 'lost' && !lossReason)}
+                  className="flex-1 py-3 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-colors shadow-lg shadow-indigo-500/20 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                >
+                  <Save size={18} />
+                  Confirmar
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* CELEBRAÇÃO DE VENDA */}
+      {showCelebration && (
+        <SuccessCelebration onClose={() => setShowCelebration(false)} />
+      )}
     </div>
   );
 };

@@ -13,6 +13,7 @@ import { CURRENT_USER } from '../constants';
 import { Property, PropertyStatus, Visit, VisitStatus } from '../types';
 import { trackClientView } from '../utils/tracking';
 import { getClients, getProperties, getVisits, saveVisits } from '../utils/storage';
+import { createVisitScheduledActivity } from '../utils/activityHelpers';
 
 // Mock Listing Agents for demo purposes (usually would come from Property data)
 const MOCK_LISTING_AGENTS: Record<string, { name: string; agency: string; phone: string }> = {
@@ -206,6 +207,9 @@ export const ClientManager: React.FC = () => {
       const visits = getVisits();
       visits.push(newVisit);
       saveVisits(visits);
+
+      // Criar atividade de visita agendada
+      createVisitScheduledActivity(client.name, property.title, scheduleData.date);
 
       alert(`Visita registada manualmente no sistema!`);
       setIsScheduleModalOpen(false);

@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Sidebar } from './components/Sidebar';
 import { Header } from './components/Header';
 import { Dashboard } from './pages/Dashboard';
 import { ClientPortal } from './pages/ClientPortal';
-import { VisitDetail } from './pages/VisitDetail'; 
-import { Visits } from './pages/Visits'; 
+import { VisitDetail } from './pages/VisitDetail';
+import { Visits } from './pages/Visits';
 import { PropertyImport } from './pages/PropertyImport';
 import { Properties } from './pages/Properties';
 import { PropertyDetail } from './pages/PropertyDetail';
@@ -13,7 +14,19 @@ import { ClientManager } from './pages/ClientManager';
 import { Reports } from './pages/Reports';
 import { Settings } from './pages/Settings';
 import { Login } from './pages/Login';
+import { Pricing } from './pages/Pricing';
 import { LanguageProvider } from './contexts/LanguageContext';
+
+// Configurar React Query Client
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: 1,
+      refetchOnWindowFocus: false,
+      staleTime: 1000 * 60 * 5, // 5 minutos
+    },
+  },
+});
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -81,26 +94,29 @@ const App: React.FC = () => {
   }
 
   return (
-    <LanguageProvider>
-      <HashRouter>
-        <Layout onLogout={handleLogout}>
-          <Routes>
-            <Route path="/" element={<Dashboard />} />
-            <Route path="/visits" element={<Visits />} /> 
-            <Route path="/import" element={<PropertyImport />} />
-            <Route path="/clients" element={<ClientPortal />} />
-            <Route path="/clients/:id" element={<ClientManager />} />
-            <Route path="/properties" element={<Properties />} />
-            <Route path="/properties/:id" element={<PropertyDetail />} />
-            <Route path="/analytics" element={<Reports />} />
-            <Route path="/settings" element={<Settings />} />
-            
-            {/* Redirects */}
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
-        </Layout>
-      </HashRouter>
-    </LanguageProvider>
+    <QueryClientProvider client={queryClient}>
+      <LanguageProvider>
+        <HashRouter>
+          <Layout onLogout={handleLogout}>
+            <Routes>
+              <Route path="/" element={<Dashboard />} />
+              <Route path="/visits" element={<Visits />} />
+              <Route path="/import" element={<PropertyImport />} />
+              <Route path="/clients" element={<ClientPortal />} />
+              <Route path="/clients/:id" element={<ClientManager />} />
+              <Route path="/properties" element={<Properties />} />
+              <Route path="/properties/:id" element={<PropertyDetail />} />
+              <Route path="/analytics" element={<Reports />} />
+              <Route path="/settings" element={<Settings />} />
+              <Route path="/pricing" element={<Pricing />} />
+
+              {/* Redirects */}
+              <Route path="*" element={<Navigate to="/" replace />} />
+            </Routes>
+          </Layout>
+        </HashRouter>
+      </LanguageProvider>
+    </QueryClientProvider>
   );
 };
 
