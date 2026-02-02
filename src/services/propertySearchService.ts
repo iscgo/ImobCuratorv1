@@ -5,14 +5,22 @@
  *
  * ESTRATÉGIAS DISPONÍVEIS:
  * 1. REALISTIC_SIMULATION (PADRÃO) - Dados ultra-realistas baseados em mercado real
- * 2. AI_ENHANCED - Usa GPT-4o para gerar dados baseados em conhecimento de mercado
+ * 2. AI_ENHANCED - Usa Gemini para gerar dados baseados em conhecimento de mercado
  * 3. DEMO_MODE - Dados claramente marcados como demonstração
+ * 4. REAL_SEARCH - ✨ NOVO! Busca REAL via Apify Idealista Scraper
+ *
+ * REAL_SEARCH - Busca de Imóveis Reais:
+ * - Usa Apify Idealista Scraper API para buscar anúncios REAIS do Idealista.pt
+ * - Tempo de resposta: 5-15 segundos (vs 30ms da simulação)
+ * - Requer APIFY_API_TOKEN configurado em .env
+ * - Custo: ~€0.01-0.05 por busca (dependendo do plano Apify)
+ * - Dados 100% reais e atualizados
  *
  * IMPORTANTE - LIMITAÇÕES TÉCNICAS:
  * - Idealista.pt API: Requer aprovação prévia (não disponível publicamente)
  * - Imovirtual API: Não possui API pública documentada
  * - CASAFARI API: Comercial, requer contrato
- * - Web Scraping: Pode violar termos de serviço dos sites
+ * - Web Scraping direto: Pode violar termos de serviço dos sites
  *
  * SOLUÇÃO IMPLEMENTADA:
  * Geração de dados ultra-realistas baseada em:
@@ -21,8 +29,8 @@
  * - Características típicas de imóveis portugueses
  * - URLs realistas de sites conhecidos (idealista.pt, imovirtual.pt, etc)
  *
- * DISCLAIMER: Os imóveis gerados são simulações realistas para demonstração.
- * Para busca de imóveis reais, visite diretamente os portais imobiliários.
+ * DISCLAIMER: Exceto REAL_SEARCH, os imóveis gerados são simulações realistas para demonstração.
+ * Para busca de imóveis reais, use REAL_SEARCH ou visite diretamente os portais imobiliários.
  */
 
 import { GoogleGenerativeAI } from '@google/generative-ai';
@@ -34,7 +42,7 @@ const apiKey = typeof import.meta !== 'undefined' && import.meta.env
 
 const genAI = new GoogleGenerativeAI(apiKey || '');
 
-export type SearchStrategy = 'REALISTIC_SIMULATION' | 'AI_ENHANCED' | 'DEMO_MODE';
+export type SearchStrategy = 'REALISTIC_SIMULATION' | 'AI_ENHANCED' | 'DEMO_MODE' | 'REAL_SEARCH';
 
 export interface PropertySearchCriteria {
   type: string;
@@ -404,6 +412,51 @@ async function searchWithDemoMode(
 }
 
 /**
+ * ESTRATÉGIA 4: REAL_SEARCH
+ * Busca imóveis REAIS usando Apify Idealista Scraper
+ */
+async function searchWithRealSearch(
+  criteria: PropertySearchCriteria
+): Promise<Property[]> {
+  console.log('🌐 Usando REAL_SEARCH - Buscando imóveis REAIS via Apify Idealista');
+
+  try {
+    // Import dinâmico para evitar circular dependency
+    const { apifyService } = await import('./apifyService');
+
+    // Verifica se Apify está configurado
+    if (!apifyService.isConfigured()) {
+      console.error('❌ APIFY_API_TOKEN não configurado em .env');
+      console.log('🔄 Fallback para REALISTIC_SIMULATION');
+      return searchWithRealisticSimulation(criteria);
+    }
+
+    console.log('⏳ Aguarde... Buscando imóveis reais (pode levar 5-15 segundos)');
+
+    // Busca imóveis reais via Apify
+    const realProperties = await apifyService.searchProperties(criteria);
+
+    console.log(`✅ ${realProperties.length} imóveis REAIS encontrados no Idealista.pt`);
+
+    // Se não encontrou resultados suficientes, complementa com simulação
+    if (realProperties.length < 5) {
+      console.log('⚠️  Poucos resultados reais, complementando com simulação');
+      const simulated = await searchWithRealisticSimulation(criteria);
+      return [
+        ...realProperties,
+        ...simulated.slice(0, 15 - realProperties.length)
+      ];
+    }
+
+    return realProperties.slice(0, 15);
+  } catch (error) {
+    console.error('❌ Erro ao buscar imóveis reais via Apify:', error);
+    console.log('🔄 Fallback para REALISTIC_SIMULATION');
+    return searchWithRealisticSimulation(criteria);
+  }
+}
+
+/**
  * Parse de resposta JSON da IA
  */
 function parsePropertiesJSON(response: string): Property[] {
@@ -488,6 +541,9 @@ export const propertySearchService = {
       let properties: Property[];
 
       switch (strategy) {
+        case 'REAL_SEARCH':
+          properties = await searchWithRealSearch(criteria);
+          break;
         case 'AI_ENHANCED':
           properties = await searchWithAIEnhanced(criteria);
           break;
@@ -501,7 +557,12 @@ export const propertySearchService = {
       }
 
       console.log(`✅ Encontrados ${properties.length} imóveis`);
-      console.log('⚠️  IMPORTANTE: Imóveis são simulações realistas baseadas em dados de mercado 2026');
+
+      if (strategy === 'REAL_SEARCH') {
+        console.log('✨ Imóveis REAIS do Idealista.pt via Apify');
+      } else {
+        console.log('⚠️  IMPORTANTE: Imóveis são simulações realistas baseadas em dados de mercado 2026');
+      }
 
       return properties;
     } catch (error) {

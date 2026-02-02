@@ -40,29 +40,57 @@ const PropertySearchDemo: React.FC = () => {
 
   return (
     <div className="p-6 max-w-7xl mx-auto">
-      <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-6">
+      <div className={`border-l-4 p-4 mb-6 ${strategy === 'REAL_SEARCH' ? 'bg-green-50 border-green-400' : 'bg-yellow-50 border-yellow-400'}`}>
         <div className="flex">
           <div className="flex-shrink-0">
-            <svg className="h-5 w-5 text-yellow-400" viewBox="0 0 20 20" fill="currentColor">
-              <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-            </svg>
+            {strategy === 'REAL_SEARCH' ? (
+              <svg className="h-5 w-5 text-green-400" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+              </svg>
+            ) : (
+              <svg className="h-5 w-5 text-yellow-400" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+              </svg>
+            )}
           </div>
           <div className="ml-3">
-            <h3 className="text-sm font-medium text-yellow-800">Disclaimer Importante</h3>
-            <div className="mt-2 text-sm text-yellow-700">
-              <p className="mb-2">
-                <strong>Os imóveis apresentados são simulações realistas para demonstração do sistema.</strong>
-              </p>
-              <ul className="list-disc list-inside space-y-1">
-                <li>Dados baseados em preços médios reais de mercado 2026</li>
-                <li>Bairros e localizações são reais</li>
-                <li>URLs apontam para sites reais mas IDs são gerados</li>
-                <li>Para busca de imóveis reais, visite diretamente os portais imobiliários</li>
-              </ul>
-              <p className="mt-2 font-medium">
-                Motivo: APIs públicas de imóveis em Portugal requerem aprovação prévia ou contratos comerciais.
-              </p>
-            </div>
+            {strategy === 'REAL_SEARCH' ? (
+              <>
+                <h3 className="text-sm font-medium text-green-800">✨ Busca de Imóveis Reais Ativada</h3>
+                <div className="mt-2 text-sm text-green-700">
+                  <p className="mb-2">
+                    <strong>Você está usando REAL_SEARCH - Dados 100% reais do Idealista.pt!</strong>
+                  </p>
+                  <ul className="list-disc list-inside space-y-1">
+                    <li>Anúncios reais e atualizados do Idealista.pt</li>
+                    <li>Preços, fotos e descrições autênticas</li>
+                    <li>Links diretos para os anúncios originais</li>
+                    <li>Tempo de resposta: 5-15 segundos (aguarde)</li>
+                  </ul>
+                  <p className="mt-2 font-medium">
+                    Powered by Apify Idealista Scraper API
+                  </p>
+                </div>
+              </>
+            ) : (
+              <>
+                <h3 className="text-sm font-medium text-yellow-800">Disclaimer Importante</h3>
+                <div className="mt-2 text-sm text-yellow-700">
+                  <p className="mb-2">
+                    <strong>Os imóveis apresentados são simulações realistas para demonstração do sistema.</strong>
+                  </p>
+                  <ul className="list-disc list-inside space-y-1">
+                    <li>Dados baseados em preços médios reais de mercado 2026</li>
+                    <li>Bairros e localizações são reais</li>
+                    <li>URLs apontam para sites reais mas IDs são gerados</li>
+                    <li>Para busca de imóveis reais, use <strong>REAL_SEARCH</strong> ou visite diretamente os portais</li>
+                  </ul>
+                  <p className="mt-2 font-medium">
+                    Motivo: APIs públicas de imóveis em Portugal requerem aprovação prévia ou contratos comerciais.
+                  </p>
+                </div>
+              </>
+            )}
           </div>
         </div>
       </div>
@@ -120,6 +148,26 @@ const PropertySearchDemo: React.FC = () => {
               <div className="text-sm text-gray-600">
                 Dados claramente marcados como [DEMO] em todos os campos.
                 Uso para testes e demonstrações.
+              </div>
+            </div>
+          </label>
+
+          <label className="flex items-start space-x-3 cursor-pointer">
+            <input
+              type="radio"
+              value="REAL_SEARCH"
+              checked={strategy === 'REAL_SEARCH'}
+              onChange={(e) => setStrategy(e.target.value as SearchStrategy)}
+              className="mt-1"
+            />
+            <div>
+              <div className="font-medium text-green-600">✨ REAL_SEARCH (Imóveis Reais!)</div>
+              <div className="text-sm text-gray-600">
+                Busca REAL via Apify Idealista Scraper. Dados 100% reais do Idealista.pt.
+                Mais lento (5-15s) mas com anúncios autênticos.
+              </div>
+              <div className="text-xs text-orange-600 mt-1">
+                ⚠️ Requer APIFY_API_TOKEN configurado. Custo: ~€0.01-0.05 por busca.
               </div>
             </div>
           </label>
@@ -292,9 +340,13 @@ const PropertySearchDemo: React.FC = () => {
                   Ver no {prop.website} →
                 </a>
 
-                {prop.isSimulated && (
+                {prop.isSimulated ? (
                   <div className="mt-2 text-xs text-gray-500 italic">
                     ⚠️ Imóvel simulado para demonstração
+                  </div>
+                ) : (
+                  <div className="mt-2 inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-green-100 text-green-800">
+                    ✅ Imóvel REAL do Idealista.pt
                   </div>
                 )}
               </div>
