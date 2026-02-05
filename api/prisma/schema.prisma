@@ -1,0 +1,35 @@
+// Prisma schema for ImobCurator
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String    @id @default(uuid())
+  email         String    @unique
+  passwordHash  String    @map("password_hash")
+  name          String
+  phone         String?
+  agency        String?
+  licenseNumber String?   @map("license_number")
+  avatarUrl     String?   @map("avatar_url")
+
+  // Preferences
+  language      String    @default("pt-PT")
+  timezone      String    @default("Europe/Lisbon")
+  currency      String    @default("EUR")
+  theme         String    @default("light")
+
+  // Metadata
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+  lastLogin     DateTime? @map("last_login")
+
+  @@index([email])
+  @@map("users")
+}

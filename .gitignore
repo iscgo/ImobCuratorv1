@@ -23,12 +23,17 @@ dist-ssr
 *.sln
 *.sw?
 
-# Environment & Secrets (AIOS)
+# Environment & Secrets
 .env
 .env.local
 .env.*.local
 *.key
 *.pem
+
+# Editor directories and files
+Thumbs.db
+.idea/
+*.swp
 
 # Dependencies (AIOS)
 node_modules/
@@ -37,11 +42,6 @@ node_modules/
 dist/
 build/
 logs/
-
-# IDE & OS (AIOS)
-Thumbs.db
-.idea/
-*.swp
 
 # AIOS Local (AIOS)
 .aios-core/local/

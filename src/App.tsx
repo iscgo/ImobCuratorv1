@@ -16,6 +16,10 @@ import { Settings } from './pages/Settings';
 import { Login } from './pages/Login';
 import { Pricing } from './pages/Pricing';
 import { LanguageProvider } from './contexts/LanguageContext';
+import { AuthProvider } from './contexts/AuthContext';
+import { ProtectedRoute } from './components/ProtectedRoute';
+import LoginSimple from './pages/LoginSimple';
+import Register from './pages/Register';
 
 // Configurar React Query Client
 const queryClient = new QueryClient({
@@ -77,49 +81,143 @@ const Layout: React.FC<LayoutProps> = ({ children, onLogout }) => {
   );
 };
 
-const App: React.FC = () => {
-  // Estado de Autenticação (Persiste em memória apenas para demo)
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+const AppContent: React.FC = () => {
+  const [darkMode, setDarkMode] = useState(true);
 
-  const handleLogin = () => {
-    setIsAuthenticated(true);
-  };
-
-  const handleLogout = () => {
-    setIsAuthenticated(false);
-  };
-
-  if (!isAuthenticated) {
-    return <Login onLogin={handleLogin} />;
-  }
+  useEffect(() => {
+    if (darkMode) {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  }, [darkMode]);
 
   return (
-    <QueryClientProvider client={queryClient}>
-      <LanguageProvider>
-        <HashRouter>
-          <Layout onLogout={handleLogout}>
-            <Routes>
-              <Route path="/" element={<Dashboard />} />
-              <Route path="/visits" element={<Visits />} />
-              <Route path="/import" element={<PropertyImport />} />
-              <Route path="/clients" element={<ClientPortal />} />
-              <Route path="/clients/:id" element={<ClientManager />} />
-              <Route path="/properties" element={<Properties />} />
-              <Route path="/properties/:id" element={<PropertyDetail />} />
-              <Route path="/analytics" element={<Reports />} />
-              <Route path="/settings" element={<Settings />} />
-              <Route path="/pricing" element={<Pricing />} />
+    <HashRouter>
+      <Routes>
+        {/* Public routes - Authentication pages */}
+        <Route path="/login" element={<LoginSimple />} />
+        <Route path="/register" element={<Register />} />
 
-              {/* Redirects */}
-              <Route path="*" element={<Navigate to="/" replace />} />
-            </Routes>
-          </Layout>
-        </HashRouter>
-      </LanguageProvider>
-    </QueryClientProvider>
+        {/* Protected routes - Authenticated pages */}
+        <Route
+          path="/"
+          element={
+            <ProtectedRoute>
+              <Layout onLogout={() => {}}>
+                <Dashboard />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/visits"
+          element={
+            <ProtectedRoute>
+              <Layout onLogout={() => {}}>
+                <Visits />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/import"
+          element={
+            <ProtectedRoute>
+              <Layout onLogout={() => {}}>
+                <PropertyImport />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/clients"
+          element={
+            <ProtectedRoute>
+              <Layout onLogout={() => {}}>
+                <ClientPortal />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/clients/:id"
+          element={
+            <ProtectedRoute>
+              <Layout onLogout={() => {}}>
+                <ClientManager />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/properties"
+          element={
+            <ProtectedRoute>
+              <Layout onLogout={() => {}}>
+                <Properties />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/properties/:id"
+          element={
+            <ProtectedRoute>
+              <Layout onLogout={() => {}}>
+                <PropertyDetail />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/analytics"
+          element={
+            <ProtectedRoute>
+              <Layout onLogout={() => {}}>
+                <Reports />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/settings"
+          element={
+            <ProtectedRoute>
+              <Layout onLogout={() => {}}>
+                <Settings />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/pricing"
+          element={
+            <ProtectedRoute>
+              <Layout onLogout={() => {}}>
+                <Pricing />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+
+        {/* Redirects */}
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </HashRouter>
   );
 };
 
-
+const App: React.FC = () => {
+  return (
+    <AuthProvider>
+      <QueryClientProvider client={queryClient}>
+        <LanguageProvider>
+          <AppContent />
+        </LanguageProvider>
+      </QueryClientProvider>
+    </AuthProvider>
+  );
+};
 
 export default App;
